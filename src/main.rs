@@ -34,14 +34,11 @@ fn search_prs(username: &str, filter: &str, since: &str) -> Result<Vec<String>, 
     let output = run_gh_command(&[
         "search",
         "prs",
-        "--author",
-        username,
+        &format!("--author={username}"),
         filter,
         &format!(">={since}"),
-        "--json",
-        "url",
-        "--limit",
-        "1000",
+        "--json=url",
+        "--limit=1000",
     ])?;
 
     #[derive(Deserialize)]
@@ -60,14 +57,11 @@ fn search_issues(username: &str, filter: &str, since: &str) -> Result<Vec<String
     let output = run_gh_command(&[
         "search",
         "issues",
-        "--author",
-        username,
+        &format!("--author={username}"),
         filter,
         &format!(">={since}"),
-        "--json",
-        "url",
-        "--limit",
-        "1000",
+        "--json=url",
+        "--limit=1000",
     ])?;
 
     #[derive(Deserialize)]
@@ -86,14 +80,11 @@ fn get_pr_reviews(username: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "prs",
-        "--reviewed-by",
-        username,
+        &format!("--reviewed-by={username}"),
         "--updated",
         &format!(">={since}"),
-        "--json",
-        "url",
-        "--limit",
-        "1000",
+        "--json=url",
+        "--limit=1000",
     ])?;
 
     #[derive(Deserialize)]
@@ -112,14 +103,11 @@ fn get_comments(username: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "issues",
-        "--commenter",
-        username,
+        &format!("--commenter={username}"),
         "--created",
         &format!(">={since}"),
-        "--json",
-        "url",
-        "--limit",
-        "1000",
+        "--json=url",
+        "--limit=1000",
     ])?;
 
     #[derive(Deserialize)]
@@ -143,9 +131,39 @@ fn print_items(label: &str, urls: &[String], verbose: bool) {
     }
 }
 
+fn print_help() {
+    println!("gh-summary - Summarize your GitHub activity");
+    println!();
+    println!("USAGE:");
+    println!("    gh-summary [OPTIONS]");
+    println!();
+    println!("OPTIONS:");
+    println!("    --help, -h          Show this help message");
+    println!("    --verbose, -v       Show detailed output with links to all items");
+    println!("    --since <DATE>      Show activity since date (YYYY-MM-DD format)");
+    println!("                        Default: one week ago");
+    println!();
+    println!("EXAMPLES:");
+    println!("    gh-summary");
+    println!("    gh-summary --verbose");
+    println!("    gh-summary --since 2025-09-01");
+    println!("    gh-summary --since 2025-09-01 --verbose");
+    println!();
+    println!("REQUIREMENTS:");
+    println!("    GitHub CLI (gh) must be installed and authenticated");
+    println!("    Run 'gh auth login' if not already authenticated");
+}
+
 fn main() {
     // Parse command-line arguments
     let args: Vec<String> = env::args().collect();
+
+    // Check for help flag
+    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
+        print_help();
+        return;
+    }
+
     let verbose = args.contains(&"--verbose".to_string()) || args.contains(&"-v".to_string());
 
     // Parse --since argument
@@ -162,12 +180,10 @@ fn main() {
         one_week_ago.strftime("%Y-%m-%d").to_string()
     };
 
-    println!("Fetching your GitHub activity...\n");
-
     // Get current user
     let username = match get_current_user() {
         Ok(user) => {
-            println!("User: {user}\n");
+            println!("GitHub User: {user}\n");
             user
         }
         Err(err) => {
@@ -177,7 +193,7 @@ fn main() {
         }
     };
 
-    println!("Activity since {since_date}:");
+    println!("GitHub Activity since {since_date}:");
     println!("{}", "=".repeat(50));
 
     // PRs opened
