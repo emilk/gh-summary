@@ -5,7 +5,7 @@ A command-line tool to summarize your GitHub activity.
 ## Installation
 
 ```bash
-cargo install --path .
+cargo install gh-summary --locked
 ```
 
 ## Usage
