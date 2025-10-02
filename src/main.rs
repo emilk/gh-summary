@@ -7,7 +7,7 @@ fn run_gh_command(args: &[&str]) -> Result<String, String> {
     let output = Command::new("gh")
         .args(args)
         .output()
-        .map_err(|e| format!("Failed to execute gh command: {}", e))?;
+        .map_err(|err| format!("Failed to execute gh command: {err}"))?;
 
     if !output.status.success() {
         return Err(format!(
@@ -31,7 +31,7 @@ fn search_prs(username: &str, filter: &str, since: &str) -> Result<Vec<String>, 
         "--author",
         username,
         filter,
-        &format!(">={}", since),
+        &format!(">={since}"),
         "--json",
         "url",
         "--limit",
@@ -46,7 +46,7 @@ fn search_prs(username: &str, filter: &str, since: &str) -> Result<Vec<String>, 
     struct Items(Vec<Item>);
 
     let items: Items =
-        serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        serde_json::from_str(&output).map_err(|err| format!("Failed to parse JSON: {err}"))?;
     Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
@@ -57,7 +57,7 @@ fn search_issues(username: &str, filter: &str, since: &str) -> Result<Vec<String
         "--author",
         username,
         filter,
-        &format!(">={}", since),
+        &format!(">={since}"),
         "--json",
         "url",
         "--limit",
@@ -72,7 +72,7 @@ fn search_issues(username: &str, filter: &str, since: &str) -> Result<Vec<String
     struct Items(Vec<Item>);
 
     let items: Items =
-        serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        serde_json::from_str(&output).map_err(|err| format!("Failed to parse JSON: {err}"))?;
     Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
@@ -83,7 +83,7 @@ fn get_pr_reviews(username: &str, since: &str) -> Result<Vec<String>, String> {
         "--reviewed-by",
         username,
         "--updated",
-        &format!(">={}", since),
+        &format!(">={since}"),
         "--json",
         "url",
         "--limit",
@@ -98,7 +98,7 @@ fn get_pr_reviews(username: &str, since: &str) -> Result<Vec<String>, String> {
     struct Items(Vec<Item>);
 
     let items: Items =
-        serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        serde_json::from_str(&output).map_err(|err| format!("Failed to parse JSON: {err}"))?;
     Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
@@ -109,7 +109,7 @@ fn get_comments(username: &str, since: &str) -> Result<Vec<String>, String> {
         "--commenter",
         username,
         "--created",
-        &format!(">={}", since),
+        &format!(">={since}"),
         "--json",
         "url",
         "--limit",
@@ -124,7 +124,7 @@ fn get_comments(username: &str, since: &str) -> Result<Vec<String>, String> {
     struct Items(Vec<Item>);
 
     let items: Items =
-        serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        serde_json::from_str(&output).map_err(|err| format!("Failed to parse JSON: {err}"))?;
     Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
@@ -132,7 +132,7 @@ fn print_items(label: &str, urls: &[String], verbose: bool) {
     println!("{:19}{}", label, urls.len());
     if verbose && !urls.is_empty() {
         for url in urls {
-            println!("  - {}", url);
+            println!("  - {url}");
         }
     }
 }
@@ -151,55 +151,57 @@ fn main() {
     // Get current user
     let username = match get_current_user() {
         Ok(user) => {
-            println!("User: {}\n", user);
+            println!("User: {user}\n");
             user
         }
-        Err(e) => {
-            eprintln!("Error: {}", e);
+        Err(err) => {
+            eprintln!("Error: {err}");
             eprintln!("Make sure you're authenticated with 'gh auth login'");
             std::process::exit(1);
         }
     };
 
-    println!("Activity since {}:", since_date);
+    println!("Activity since {since_date}:");
     println!("{}", "=".repeat(50));
 
     // PRs opened
     match search_prs(&username, "--created", &since_date) {
         Ok(urls) => print_items("PRs opened:", &urls, verbose),
-        Err(e) => eprintln!("Error fetching PRs opened: {}", e),
+        Err(err) => eprintln!("Error fetching PRs opened: {err}"),
     }
 
     if false {
         // PRs closed/merged
         match search_prs(&username, "--closed", &since_date) {
             Ok(urls) => print_items("PRs closed:", &urls, verbose),
-            Err(e) => eprintln!("Error fetching PRs closed: {}", e),
+            Err(err) => eprintln!("Error fetching PRs closed: {err}"),
         }
     }
 
     // Issues opened
     match search_issues(&username, "--created", &since_date) {
         Ok(urls) => print_items("Issues opened:", &urls, verbose),
-        Err(e) => eprintln!("Error fetching issues opened: {}", e),
+        Err(err) => eprintln!("Error fetching issues opened: {err}"),
     }
 
     // Issues closed
     match search_issues(&username, "--closed", &since_date) {
         Ok(urls) => print_items("Issues closed:", &urls, verbose),
-        Err(e) => eprintln!("Error fetching issues closed: {}", e),
+        Err(err) => eprintln!("Error fetching issues closed: {err}"),
     }
 
     // PR reviews given
     match get_pr_reviews(&username, &since_date) {
         Ok(urls) => print_items("PR reviews given:", &urls, verbose),
-        Err(e) => eprintln!("Error fetching PR reviews: {}", e),
+        Err(err) => eprintln!("Error fetching PR reviews: {err}"),
     }
 
-    // Comments written
-    match get_comments(&username, &since_date) {
-        Ok(urls) => print_items("Comments written:", &urls, verbose),
-        Err(e) => eprintln!("Error fetching comments: {}", e),
+    if false {
+        // Comments written
+        match get_comments(&username, &since_date) {
+            Ok(urls) => print_items("Comments written:", &urls, verbose),
+            Err(err) => eprintln!("Error fetching comments: {err}"),
+        }
     }
 
     println!("{}", "=".repeat(50));
