@@ -1,9 +1,17 @@
 [package]
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+categories = ["command-line-utilities"]
+description = "A command-line tool to summarize your GitHub activity"
+edition = "2024"
+keywords = ["github", "cli", "summary", "activity"]
+license = "MIT OR Apache-2.0"
 name = "gh-summary"
+readme = "README.md"
+repository = "https://github.com/emilk/gh-summary"
+rust-version = "1.88.0"
 version = "0.1.0"
-edition = "2021"
 
 [dependencies]
+jiff = "0.2.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-chrono = "0.4"

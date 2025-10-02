@@ -1,13 +1,19 @@
-use chrono::{Duration, Utc};
+use std::{env, process::Command};
+
+use jiff::{ToSpan, Zoned};
 use serde::Deserialize;
-use std::env;
-use std::process::Command;
 
 fn run_gh_command(args: &[&str]) -> Result<String, String> {
     let output = Command::new("gh")
         .args(args)
         .output()
-        .map_err(|err| format!("Failed to execute gh command: {err}"))?;
+        .map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                "GitHub CLI (gh) not found. Please install it from https://cli.github.com/ and make sure it's in your PATH.".to_owned()
+            } else {
+                format!("Failed to execute gh command: {err}")
+            }
+        })?;
 
     if !output.status.success() {
         return Err(format!(
@@ -142,11 +148,21 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let verbose = args.contains(&"--verbose".to_string()) || args.contains(&"-v".to_string());
 
-    println!("Fetching your GitHub activity for the past week...\n");
+    // Parse --since argument
+    let since_date = if let Some(pos) = args.iter().position(|arg| arg == "--since") {
+        if pos + 1 < args.len() {
+            args[pos + 1].clone()
+        } else {
+            eprintln!("Error: --since requires a date argument (YYYY-MM-DD)");
+            std::process::exit(1);
+        }
+    } else {
+        // Default to one week ago
+        let one_week_ago = Zoned::now().checked_sub(7_i32.days()).unwrap();
+        one_week_ago.strftime("%Y-%m-%d").to_string()
+    };
 
-    // Calculate date one week ago
-    let one_week_ago = Utc::now() - Duration::days(7);
-    let since_date = one_week_ago.format("%Y-%m-%d").to_string();
+    println!("Fetching your GitHub activity...\n");
 
     // Get current user
     let username = match get_current_user() {
