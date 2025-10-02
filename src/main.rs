@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use serde::Deserialize;
+use std::env;
 use std::process::Command;
 
 fn run_gh_command(args: &[&str]) -> Result<String, String> {
@@ -23,7 +24,7 @@ fn get_current_user() -> Result<String, String> {
     Ok(output.trim().to_string())
 }
 
-fn search_prs_count(username: &str, filter: &str, _date_flag: &str, since: &str) -> Result<usize, String> {
+fn search_prs(username: &str, filter: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "prs",
@@ -38,14 +39,18 @@ fn search_prs_count(username: &str, filter: &str, _date_flag: &str, since: &str)
     ])?;
 
     #[derive(Deserialize)]
-    struct Items(Vec<serde_json::Value>);
+    struct Item {
+        url: String,
+    }
+    #[derive(Deserialize)]
+    struct Items(Vec<Item>);
 
     let items: Items =
         serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    Ok(items.0.len())
+    Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
-fn search_issues_count(username: &str, filter: &str, _date_flag: &str, since: &str) -> Result<usize, String> {
+fn search_issues(username: &str, filter: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "issues",
@@ -60,14 +65,18 @@ fn search_issues_count(username: &str, filter: &str, _date_flag: &str, since: &s
     ])?;
 
     #[derive(Deserialize)]
-    struct Items(Vec<serde_json::Value>);
+    struct Item {
+        url: String,
+    }
+    #[derive(Deserialize)]
+    struct Items(Vec<Item>);
 
     let items: Items =
         serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    Ok(items.0.len())
+    Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
-fn get_pr_review_count(username: &str, since: &str) -> Result<usize, String> {
+fn get_pr_reviews(username: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "prs",
@@ -82,14 +91,18 @@ fn get_pr_review_count(username: &str, since: &str) -> Result<usize, String> {
     ])?;
 
     #[derive(Deserialize)]
-    struct Items(Vec<serde_json::Value>);
+    struct Item {
+        url: String,
+    }
+    #[derive(Deserialize)]
+    struct Items(Vec<Item>);
 
     let items: Items =
         serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    Ok(items.0.len())
+    Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
-fn get_comment_count(username: &str, since: &str) -> Result<usize, String> {
+fn get_comments(username: &str, since: &str) -> Result<Vec<String>, String> {
     let output = run_gh_command(&[
         "search",
         "issues",
@@ -104,14 +117,31 @@ fn get_comment_count(username: &str, since: &str) -> Result<usize, String> {
     ])?;
 
     #[derive(Deserialize)]
-    struct Items(Vec<serde_json::Value>);
+    struct Item {
+        url: String,
+    }
+    #[derive(Deserialize)]
+    struct Items(Vec<Item>);
 
     let items: Items =
         serde_json::from_str(&output).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    Ok(items.0.len())
+    Ok(items.0.into_iter().map(|item| item.url).collect())
+}
+
+fn print_items(label: &str, urls: &[String], verbose: bool) {
+    println!("{:19}{}", label, urls.len());
+    if verbose && !urls.is_empty() {
+        for url in urls {
+            println!("  - {}", url);
+        }
+    }
 }
 
 fn main() {
+    // Parse command-line arguments
+    let args: Vec<String> = env::args().collect();
+    let verbose = args.contains(&"--verbose".to_string()) || args.contains(&"-v".to_string());
+
     println!("Fetching your GitHub activity for the past week...\n");
 
     // Calculate date one week ago
@@ -135,38 +165,40 @@ fn main() {
     println!("{}", "=".repeat(50));
 
     // PRs opened
-    match search_prs_count(&username, "--created", "--created", &since_date) {
-        Ok(count) => println!("PRs opened:        {}", count),
+    match search_prs(&username, "--created", &since_date) {
+        Ok(urls) => print_items("PRs opened:", &urls, verbose),
         Err(e) => eprintln!("Error fetching PRs opened: {}", e),
     }
 
-    // PRs closed/merged
-    match search_prs_count(&username, "--closed", "--closed", &since_date) {
-        Ok(count) => println!("PRs closed:        {}", count),
-        Err(e) => eprintln!("Error fetching PRs closed: {}", e),
+    if false {
+        // PRs closed/merged
+        match search_prs(&username, "--closed", &since_date) {
+            Ok(urls) => print_items("PRs closed:", &urls, verbose),
+            Err(e) => eprintln!("Error fetching PRs closed: {}", e),
+        }
     }
 
     // Issues opened
-    match search_issues_count(&username, "--created", "--created", &since_date) {
-        Ok(count) => println!("Issues opened:     {}", count),
+    match search_issues(&username, "--created", &since_date) {
+        Ok(urls) => print_items("Issues opened:", &urls, verbose),
         Err(e) => eprintln!("Error fetching issues opened: {}", e),
     }
 
     // Issues closed
-    match search_issues_count(&username, "--closed", "--closed", &since_date) {
-        Ok(count) => println!("Issues closed:     {}", count),
+    match search_issues(&username, "--closed", &since_date) {
+        Ok(urls) => print_items("Issues closed:", &urls, verbose),
         Err(e) => eprintln!("Error fetching issues closed: {}", e),
     }
 
     // PR reviews given
-    match get_pr_review_count(&username, &since_date) {
-        Ok(count) => println!("PR reviews given:  {}", count),
+    match get_pr_reviews(&username, &since_date) {
+        Ok(urls) => print_items("PR reviews given:", &urls, verbose),
         Err(e) => eprintln!("Error fetching PR reviews: {}", e),
     }
 
     // Comments written
-    match get_comment_count(&username, &since_date) {
-        Ok(count) => println!("Comments written:  {}", count),
+    match get_comments(&username, &since_date) {
+        Ok(urls) => print_items("Comments written:", &urls, verbose),
         Err(e) => eprintln!("Error fetching comments: {}", e),
     }
 
