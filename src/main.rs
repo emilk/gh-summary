@@ -1,7 +1,27 @@
-use std::{env, process::Command};
+use std::process::Command;
 
+use clap::Parser;
 use jiff::{ToSpan, Zoned};
 use serde::Deserialize;
+
+/// Summarize your GitHub activity
+#[derive(Parser)]
+#[command(name = "gh-summary")]
+#[command(about = "A command-line tool to summarize your GitHub activity")]
+#[command(long_about = r#"gh-summary - Summarize your GitHub activity
+
+REQUIREMENTS:
+    GitHub CLI (gh) must be installed and authenticated
+    Run 'gh auth login' if not already authenticated"#)]
+struct Args {
+    /// Show detailed output with links to all items
+    #[arg(short, long)]
+    verbose: bool,
+
+    /// Show activity since date (YYYY-MM-DD format, default: one week ago)
+    #[arg(short, long, value_name = "DATE")]
+    since: Option<String>,
+}
 
 fn run_gh_command(args: &[&str]) -> Result<String, String> {
     let output = Command::new("gh")
@@ -154,58 +174,26 @@ fn print_items(label: &str, urls: &[String], verbose: bool) {
         } else {
             "repositories"
         };
-        println!("{:19}{} across {} {}", label, urls.len(), repo_count, repo_suffix);
+        println!(
+            "{:19}{} across {} {}",
+            label,
+            urls.len(),
+            repo_count,
+            repo_suffix
+        );
     }
-}
-
-fn print_help() {
-    println!("gh-summary - Summarize your GitHub activity");
-    println!();
-    println!("USAGE:");
-    println!("    gh-summary [OPTIONS]");
-    println!();
-    println!("OPTIONS:");
-    println!("    --help, -h          Show this help message");
-    println!("    --verbose, -v       Show detailed output with links to all items");
-    println!("    --since <DATE>      Show activity since date (YYYY-MM-DD format)");
-    println!("                        Default: one week ago");
-    println!();
-    println!("EXAMPLES:");
-    println!("    gh-summary");
-    println!("    gh-summary --verbose");
-    println!("    gh-summary --since 2025-09-01");
-    println!("    gh-summary --since 2025-09-01 --verbose");
-    println!();
-    println!("REQUIREMENTS:");
-    println!("    GitHub CLI (gh) must be installed and authenticated");
-    println!("    Run 'gh auth login' if not already authenticated");
 }
 
 fn main() {
-    // Parse command-line arguments
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    // Check for help flag
-    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
-        print_help();
-        return;
-    }
+    let verbose = args.verbose;
 
-    let verbose = args.contains(&"--verbose".to_string()) || args.contains(&"-v".to_string());
-
-    // Parse --since argument
-    let since_date = if let Some(pos) = args.iter().position(|arg| arg == "--since") {
-        if pos + 1 < args.len() {
-            args[pos + 1].clone()
-        } else {
-            eprintln!("Error: --since requires a date argument (YYYY-MM-DD)");
-            std::process::exit(1);
-        }
-    } else {
-        // Default to one week ago
+    // Parse --since argument or default to one week ago
+    let since_date = args.since.unwrap_or_else(|| {
         let one_week_ago = Zoned::now().checked_sub(7_i32.days()).unwrap();
         one_week_ago.strftime("%Y-%m-%d").to_string()
-    };
+    });
 
     // Get current user
     let username = match get_current_user() {
