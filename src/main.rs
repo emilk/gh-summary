@@ -122,12 +122,39 @@ fn get_comments(username: &str, since: &str) -> Result<Vec<String>, String> {
     Ok(items.0.into_iter().map(|item| item.url).collect())
 }
 
+fn extract_repo(url: &str) -> Option<String> {
+    // Extract owner/repo from URLs like https://github.com/owner/repo/...
+    let parts: Vec<&str> = url.split('/').collect();
+    if parts.len() >= 5 && parts[2] == "github.com" {
+        Some(format!("{}/{}", parts[3], parts[4]))
+    } else {
+        None
+    }
+}
+
 fn print_items(label: &str, urls: &[String], verbose: bool) {
-    println!("{:19}{}", label, urls.len());
-    if verbose && !urls.is_empty() {
-        for url in urls {
-            println!("  - {url}");
+    let repo_count = urls
+        .iter()
+        .filter_map(|url| extract_repo(url))
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+
+    if verbose {
+        println!("{:19}{}", label, urls.len());
+        if !urls.is_empty() {
+            let mut sorted_urls = urls.to_vec();
+            sorted_urls.sort();
+            for url in sorted_urls {
+                println!("  - {url}");
+            }
         }
+    } else {
+        let repo_suffix = if repo_count == 1 {
+            "repository"
+        } else {
+            "repositories"
+        };
+        println!("{:19}{} across {} {}", label, urls.len(), repo_count, repo_suffix);
     }
 }
 
